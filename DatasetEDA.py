@@ -51,4 +51,14 @@ def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
         data['encoded_pixels_count'] = len(encoded_pixels_list)
         
     return data
+# create a list of all the files
+train_fns = sorted(glob('../input/siim-train-test/siim/dicom-images-train/*/*/*.dcm'))
+# parse train DICOM dataset
+train_metadata_df = pd.DataFrame()
+train_metadata_list = []
+for file_path in tqdm(train_fns):
+    dicom_data = pydicom.dcmread(file_path)
+    train_metadata = dicom_to_dict(dicom_data, file_path, rles_df)
+    train_metadata_list.append(train_metadata)
+train_metadata_df = pd.DataFrame(train_metadata_list)
 
