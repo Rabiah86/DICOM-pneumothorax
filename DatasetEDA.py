@@ -33,7 +33,7 @@ def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
     data['patient_age'] = int(dicom_data.PatientAge)
     data['patient_sex'] = dicom_data.PatientSex
     data['pixel_spacing'] = dicom_data.PixelSpacing
-    data['file_path'] = file_path
+    data['file_path'] = file_path # the path is saved, cz it will be waste of memory if we save the file!
     data['id'] = dicom_data.SOPInstanceUID
     
     # look for annotation if enabled (train set)
@@ -71,18 +71,80 @@ for file_path in tqdm(test_fns):
     test_metadata = dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=False)
     test_metadata_list.append(test_metadata)
 test_metadata_df = pd.DataFrame(test_metadata_list) # at this point I have all the test insances and metadata stored here!
-###########################################EDA begins here! #########################################################
+###########################################EDA begins here!#########################################################
+###########1- Explore the data, for some datatypes, the file contents are not visible like DICOM, so always select a subset look at it and try to understand more
 import matplotlib.pyplot as plt
 from matplotlib import patches as patches
 num_img = 4
 subplot_count = 0
-fig, ax = plt.subplots(nrows=1, ncols=num_img, sharey=True, figsize=(num_img*10,10))
-for index, row in train_metadata_df.sample(n=num_img).iterrows():
-    dataset = pydicom.dcmread(row['file_path'])
-    ax[subplot_count].imshow(dataset.pixel_array, cmap=plt.cm.bone)
+fig, ax = plt.subplots(nrows=1, ncols=num_img, sharey=True, figsize=(num_img*10,10)) #cz we're showing 4 subplots in the figure!   Share the Y axis! the X axis is a proportion of the number of images!
+for index, row in train_metadata_df.sample(n=num_img).iterrows(): # get a random sample of 4 images
+    dataset = pydicom.dcmread(row['file_path']) 
+    ax[subplot_count].imshow(dataset.pixel_array, cmap=plt.cm.bone) # set the color map to bone! show the pixel array of the dicom image
     # label the x-ray with information about the patient
     ax[subplot_count].text(0,0,'Age:{}, Sex: {}, Pneumothorax: {}'.format(row['patient_age'],row['patient_sex'],row['has_pneumothorax']),
                            size=26,color='white', backgroundcolor='black')
     subplot_count += 1
+##########2- show the ROIs#########################################################################################
+def bounding_box(img):
+    # return max and min of a mask to draw bounding box
+    rows = np.any(img, axis=1)
+    cols = np.any(img, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+
+    return rmin, rmax, cmin, cmax
+
+def plot_with_mask_and_bbox(file_path, mask_encoded_list, figsize=(20,10)):
+    
+    import cv2
+    
+    """Plot Chest Xray image with mask(annotation or label) and without mask.
+
+    Args:
+        file_path (str): file path of the dicom data.
+        mask_encoded (numpy.ndarray): Pandas dataframe of the RLE.
+        
+    Returns:
+        plots the image with and without mask.
+    """
+    
+    pixel_array = pydicom.dcmread(file_path).pixel_array
+    
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(16, 16))
+    clahe_pixel_array = clahe.apply(pixel_array)
+    
+    # use the masking function to decode RLE
+    mask_decoded_list = [rle2mask(mask_encoded, 1024, 1024).T for mask_encoded in mask_encoded_list]
+    
+    fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(20,10))
+    
+    # print out the xray
+    ax[0].imshow(pixel_array, cmap=plt.cm.bone)
+    # print the bounding box
+    for mask_decoded in mask_decoded_list:
+        # print out the annotated area
+        ax[0].imshow(mask_decoded, alpha=0.3, cmap="Reds")
+        rmin, rmax, cmin, cmax = bounding_box(mask_decoded)
+        bbox = patches.Rectangle((cmin,rmin),cmax-cmin,rmax-rmin,linewidth=1,edgecolor='r',facecolor='none')
+        ax[0].add_patch(bbox)
+    ax[0].set_title('With Mask')
+    
+    # plot image with clahe processing with just bounding box and no mask
+    ax[1].imshow(clahe_pixel_array, cmap=plt.cm.bone)
+    for mask_decoded in mask_decoded_list:
+        rmin, rmax, cmin, cmax = bounding_box(mask_decoded)
+        bbox = patches.Rectangle((cmin,rmin),cmax-cmin,rmax-rmin,linewidth=1,edgecolor='r',facecolor='none')
+        ax[1].add_patch(bbox)
+    ax[1].set_title('Without Mask - Clahe')
+    
+    # plot plain xray with just bounding box and no mask
+    ax[2].imshow(pixel_array, cmap=plt.cm.bone)
+    for mask_decoded in mask_decoded_list:
+        rmin, rmax, cmin, cmax = bounding_box(mask_decoded)
+        bbox = patches.Rectangle((cmin,rmin),cmax-cmin,rmax-rmin,linewidth=1,edgecolor='r',facecolor='none')
+        ax[2].add_patch(bbox)
+    ax[2].set_title('Without Mask')
+    plt.show()
 
 
