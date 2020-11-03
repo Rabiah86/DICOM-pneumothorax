@@ -25,7 +25,7 @@ def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
         dict: contains metadata of relevant fields.
     """
     
-    data = {}
+    data = {} # data is a dictionary
     
     # Parse fields with meaningful information
     data['patient_name'] = dicom_data.PatientName
@@ -60,5 +60,20 @@ for file_path in tqdm(train_fns):
     dicom_data = pydicom.dcmread(file_path)
     train_metadata = dicom_to_dict(dicom_data, file_path, rles_df)
     train_metadata_list.append(train_metadata)
-train_metadata_df = pd.DataFrame(train_metadata_list)
+train_metadata_df = pd.DataFrame(train_metadata_list)  # at this point I have all the training insances and metadata stored here!
+# create a list of all the files
+test_fns = sorted(glob('../input/siim-train-test/siim/dicom-images-test/*/*/*.dcm'))
+# parse test DICOM dataset
+test_metadata_df = pd.DataFrame()
+test_metadata_list = []
+for file_path in tqdm(test_fns):
+    dicom_data = pydicom.dcmread(file_path)
+    test_metadata = dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=False)
+    test_metadata_list.append(test_metadata)
+test_metadata_df = pd.DataFrame(test_metadata_list) # at this point I have all the test insances and metadata stored here!
+###########################################EDA begins here! #########################################################
+import matplotlib.pyplot as plt
+from matplotlib import patches as patches
+
+
 
