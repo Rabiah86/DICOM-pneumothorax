@@ -11,6 +11,7 @@ rles_df = pd.read_csv('../input/siim-train-test/siim/train-rle.csv')
 # Set the column names manually, just in case, because sometimes leading spaces or typos could cause errors!
 rles_df.columns = ['ImageId', 'EncodedPixels']
 
+#turn your dataset to a dictionary, to define the columns and combine X-ray information with corresponding metadata
 def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
     """Parse DICOM dataset and returns a dictonary with relevant fields.
 
@@ -18,7 +19,7 @@ def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
         dicom_data (dicom): chest x-ray data in dicom format.
         file_path (str): file path of the dicom data.
         rles_df (pandas.core.frame.DataFrame): Pandas dataframe of the RLE.
-        encoded_pixels (bool): if True we will search for annotation.
+        encoded_pixels (bool): if True we will search for annotation. So true for train data, flase for test!
         
     Returns:
         dict: contains metadata of relevant fields.
