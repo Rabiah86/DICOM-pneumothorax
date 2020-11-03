@@ -74,6 +74,15 @@ test_metadata_df = pd.DataFrame(test_metadata_list) # at this point I have all t
 ###########################################EDA begins here! #########################################################
 import matplotlib.pyplot as plt
 from matplotlib import patches as patches
-
+num_img = 4
+subplot_count = 0
+fig, ax = plt.subplots(nrows=1, ncols=num_img, sharey=True, figsize=(num_img*10,10))
+for index, row in train_metadata_df.sample(n=num_img).iterrows():
+    dataset = pydicom.dcmread(row['file_path'])
+    ax[subplot_count].imshow(dataset.pixel_array, cmap=plt.cm.bone)
+    # label the x-ray with information about the patient
+    ax[subplot_count].text(0,0,'Age:{}, Sex: {}, Pneumothorax: {}'.format(row['patient_age'],row['patient_sex'],row['has_pneumothorax']),
+                           size=26,color='white', backgroundcolor='black')
+    subplot_count += 1
 
 
