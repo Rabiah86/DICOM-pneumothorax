@@ -5,6 +5,11 @@ import pydicom #manage DICOM files, DICOM format can store these images with met
 from glob import glob #glob module is used to retrieve files/pathnames matching a specified pattern
 from tqdm import tqdm # show progress bar when a loop is running
 from mask_functions import rle2mask, mask2rle # Kaggle functions for manipulating RLEs (Run-length encoding (RLE) is a very simple form of lossless data compression)
+from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
+from plotly import tools
+from plotly.graph_objs import *
+from plotly.graph_objs.layout import Margin, YAxis, XAxis
+init_notebook_mode()
 
 sys.path.insert(0, '../input/siim-acr-pneumothorax-segmentation') #set the directory path
 rles_df = pd.read_csv('../input/siim-train-test/siim/train-rle.csv')
@@ -86,11 +91,19 @@ for index, row in train_metadata_df.sample(n=num_img).iterrows(): # get a random
                            size=26,color='white', backgroundcolor='black')
     subplot_count += 1
 ##########2- show the ROIs#########################################################################################
+"""
+When the ROIs are visible to the developer, 
+1- then its easier to check if the ROIs are visible, if not then we can take better decisions on what filters we need to apply like the case with this dataset, CLAHE made the image look much better 
+so this helps you make informed decisions
+
+2- can spot some insights, like confusion caused by the patient gender, like in chest Xrays
+3- also can detect any BB on the top of each other
+"""
 def bounding_box(img):
     # return max and min of a mask to draw bounding box
     rows = np.any(img, axis=1)
     cols = np.any(img, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
+    rmin, rmax = np.where(rows)[0][[0, -1]] # [0,-1] means from the first index to the last index.. cz rememner here indexing begins from 0 
     cmin, cmax = np.where(cols)[0][[0, -1]]
 
     return rmin, rmax, cmin, cmax
@@ -139,12 +152,44 @@ def plot_with_mask_and_bbox(file_path, mask_encoded_list, figsize=(20,10)):
     ax[1].set_title('Without Mask - Clahe')
     
     # plot plain xray with just bounding box and no mask
-    ax[2].imshow(pixel_array, cmap=plt.cm.bone)
+    ax[2].imshow(pixel_array, cmap=plt.cm.bone)#draws an image on the current figure 
     for mask_decoded in mask_decoded_list:
         rmin, rmax, cmin, cmax = bounding_box(mask_decoded)
         bbox = patches.Rectangle((cmin,rmin),cmax-cmin,rmax-rmin,linewidth=1,edgecolor='r',facecolor='none')
         ax[2].add_patch(bbox)
     ax[2].set_title('Without Mask')
-    plt.show()
+    plt.show() #plt.show() displays the figure 
+    #Calling plt.show() before you've drawn anything using imshow doesn't make any sense.
+    # lets take 10 random samples of x-rays with 
+train_metadata_sample = train_metadata_df[train_metadata_df['has_pneumothorax']==1].sample(n=10)
+print(len(train_metadata_sample))
+# plot ten xrays with and without mask
+for index, row in train_metadata_sample.iterrows():
+    file_path = row['file_path']
+    mask_encoded_list = row['encoded_pixels_list']
+    print('image id: ' + row['id'])
+    plot_with_mask_and_bbox(file_path, mask_encoded_list)
+########################3- plot statistics and histograms #######################
+#find any imbalance
+#see if more than one annotation per instance 
+#see if any missing annotations
+    
+    # print missing annotation
+missing_vals = train_metadata_df[train_metadata_df['encoded_pixels_count']==0]['encoded_pixels_count'].count()
+print("Number of x-rays with missing labels: {}".format(missing_vals))
+
+nok_count = train_metadata_df['has_pneumothorax'].sum() # how many have the pnomx
+ok_count = len(train_metadata_df) - nok_count #how many are healthy
+x = ['No Pneumothorax','Pneumothorax'] # name the rows
+y = [ok_count, nok_count] # name the variables for the columns
+trace0 = Bar(x=x, y=y, name = 'Ok vs Not OK') #legend and figure that plots the totals
+nok_encoded_pixels_count = train_metadata_df[train_metadata_df['has_pneumothorax']==1]['encoded_pixels_count'].values #how many infected areas are there in each instance?
+trace1 = Histogram(x=nok_encoded_pixels_count, name='# of annotations') #value against count, so its a histogram!
+fig = tools.make_subplots(rows=1, cols=2)
+fig.append_trace(trace0, 1, 1)#trace,row,column
+fig.append_trace(trace1, 1, 2)
+fig['layout'].update(height=400, width=900, title='Pneumothorax Instances')
+iplot(fig)
+#####################################
 
 
