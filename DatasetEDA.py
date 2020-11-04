@@ -190,6 +190,101 @@ fig.append_trace(trace0, 1, 1)#trace,row,column
 fig.append_trace(trace1, 1, 2)
 fig['layout'].update(height=400, width=900, title='Pneumothorax Instances')
 iplot(fig)
-#####################################
+##############4- Explore Age, Sex, and Pneumothorax#######################
+"""
+1- Remember the lung grows as we grow, so younger means smaller ROIs
+2- can have a better idea about the sizes from the aages 
+3- can also check for anomolies, do all values make since? if some ppl seem to be like 400 years old just remove such anomolies before you continue
+4- The median age for people who has pneumothorax is not considerably but is slightly lower.
+more observations:
+We have slightly more instanes of male x-rays.
+Male and female are equally likely to have Pneumothorax (at least according to our dataset)
+"""
+pneumo_pat_age = train_metadata_df[train_metadata_df['has_pneumothorax']==1]['patient_age'].values
+no_pneumo_pat_age = train_metadata_df[train_metadata_df['has_pneumothorax']==0]['patient_age'].values
+pneumothorax = Histogram(x=pneumo_pat_age, name='has pneumothorax')
+no_pneumothorax = Histogram(x=no_pneumo_pat_age, name='no pneumothorax')
+fig = tools.make_subplots(rows=1, cols=2)
+fig.append_trace(pneumothorax, 1, 1)
+fig.append_trace(no_pneumothorax, 1, 2)
+fig['layout'].update(height=400, width=900, title='Patient Age Histogram')
+iplot(fig)
+
+### Box chart for age 
+trace1 = Box(x=pneumo_pat_age, name='has pneumothorax')
+trace2 = Box(x=no_pneumo_pat_age[no_pneumo_pat_age <= 120], name='no pneumothorax') # to remove anomolies
+data = [trace1, trace2]
+iplot(data)
+###########GENDER###
+train_male_df = train_metadata_df[train_metadata_df['patient_sex']=='M']
+train_female_df = train_metadata_df[train_metadata_df['patient_sex']=='F']
+male_ok_count = len(train_male_df[train_male_df['has_pneumothorax']==0])
+female_ok_count = len(train_female_df[train_female_df['has_pneumothorax']==0])
+male_nok_count = len(train_male_df[train_male_df['has_pneumothorax']==1])
+female_nok_count = len(train_female_df[train_female_df['has_pneumothorax']==1])
+ok = Bar(x=['male', 'female'], y=[male_ok_count, female_ok_count], name='no pneumothorax')
+nok = Bar(x=['male', 'female'], y=[male_nok_count, female_nok_count], name='has pneumothorax')
+
+data = [ok, nok]
+layout = Layout(barmode='stack', height=400)
+
+fig = Figure(data=data, layout=layout)
+iplot(fig, filename='stacked-bar')
+#####noe donut chart for the percentages
+m_pneumo_labels = ['no pneumothorax','has pneumothorax']
+f_pneumo_labels = ['no pneumothorax','has pneumothorax']
+m_pneumo_values = [male_ok_count, male_nok_count]
+f_pneumo_values = [female_ok_count, female_nok_count]
+colors = ['#FEBFB3', '#E1396C']
+# original source code: https://plot.ly/python/pie-charts/#donut-chart
+
+fig = {
+  "data": [
+    {
+      "values": m_pneumo_values,
+      "labels": m_pneumo_labels,
+      "domain": {"column": 0},
+      "name": "Male",
+      "hoverinfo":"label+percent",
+      "hole": .4,
+      "type": "pie"
+    },
+    {
+      "values": f_pneumo_values,
+      "labels": f_pneumo_labels,
+      "textposition":"inside",
+      "domain": {"column": 1},
+      "name": "Female",
+      "hoverinfo":"label+percent",
+      "hole": .4,
+      "type": "pie"
+    }],
+  "layout": {
+        "title":"Pneumothorax - Male vs Female",
+        "grid": {"rows": 1, "columns": 2},
+        "annotations": [
+            {
+                "font": {
+                    "size": 20
+                },
+                "showarrow": False,
+                "text": "Male",
+                "x": 0.20,
+                "y": 0.5
+            },
+            {
+                "font": {
+                    "size": 20
+                },
+                "showarrow": False,
+                "text": "Female",
+                "x": 0.8,
+                "y": 0.5
+            }
+        ]
+    }
+}
+iplot(fig)
+
 
 
